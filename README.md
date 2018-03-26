@@ -17,7 +17,7 @@ Works under: linux, cygwin, windows
 
 ## Usage
 * Launch nlab
-* Connect to nlab using [kNUI](https://github.com/Apostol3/knui]) (more info on configuration available in kNUI docs)
+* Connect to nlab using [kNUI](https://github.com/Apostol3/knui) (more info on configuration available in kNUI docs)
 * Start training using kNUI
 * Launch training environment (e.g. [race_env](https://github.com/Apostol3/race_env))
 
