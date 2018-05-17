@@ -63,15 +63,15 @@ tweann::tweann(size_t in, size_t out)
 /* */
 int tweann::reset()
 {
-	for (size_t i = 0; i < nr.neurons.size(); i++)
+	for (auto& i : nr.neurons)
 	{
-		nr.neurons[i].c->e = 0;
+		i.c->e = 0;
 	}
 
-	for (size_t i = 0; i < lr.links.size(); i++)
+	for (auto& i : lr.links)
 	{
-		lr.links[i].in_e = 0;
-		lr.links[i].out_e = 0;
+		i.in_e = 0;
+		i.out_e = 0;
 	}
 
 	return 0;
@@ -105,7 +105,7 @@ net_task tweann::calc(const net_task& task)
 		throw;
 	}
 
-	if (n_out.size() == 0)
+	if (n_out.empty())
 	{
 		throw;
 	}

@@ -2,7 +2,7 @@
 
 #include <vector>
 
-typedef std::vector< double > env_task;
+using env_task =  std::vector< double >;
 
 enum class verification_header
 {
@@ -20,73 +20,48 @@ enum class send_modes
 
 struct e_start_info
 {
-	send_modes mode;
-	size_t count;
-	size_t incount;
-	size_t outcount;
-
-	e_start_info() : mode(send_modes::specified), count(0), incount(0), outcount(0) { }
+	send_modes mode{send_modes::specified};
+	size_t count{0};
+	size_t incount{0};
+	size_t outcount{0};
 };
 
 struct n_start_info
 {
-	size_t count;
-	size_t round_seed;
-
-	n_start_info() : count(0), round_seed(0) { }
+	size_t count{0};
+	size_t round_seed{0};
 };
 
 struct n_send_info
 {
-	verification_header head;
-
+	verification_header head{verification_header::fail};
 	std::vector< env_task > data;
-
-	n_send_info() : head(verification_header::fail) { }
 };
 
 struct e_send_info
 {
-	verification_header head;
-
+	verification_header head{verification_header::fail};
 	std::vector< env_task > data;
-
-	e_send_info() : head(verification_header::fail)
-	{
-		head = verification_header::fail;
-	}
 };
 
 struct n_restart_info
 {
-	size_t count;
-	size_t round_seed;
-
-	n_restart_info() : count(0), round_seed(0)
-	{
-	}
+	size_t count{0};
+	size_t round_seed{0};
 };
 
 struct e_restart_info
 {
-	std::vector< double > result;
-
-	e_restart_info()
-	{
-		result.push_back(-1);
-	}
+	std::vector< double > result{-1.0};
 };
 
 struct env_state
 {
-	send_modes mode;
-	size_t count;
-	size_t incount;
-	size_t outcount;
-	size_t round_seed;
-
-	env_state() : mode(send_modes::specified), count(0), incount(0), outcount(0),
-		round_seed(0) { }
+	send_modes mode{send_modes::specified};
+	size_t count{0};
+	size_t incount{0};
+	size_t outcount{0};
+	size_t round_seed{0};
 };
 
 class base_env
@@ -104,8 +79,8 @@ public:
 	virtual int terminate() = 0;
 	virtual env_state get_state() const = 0;
 
-	base_env() { };
+	base_env() = default;
 
-	virtual ~base_env() { };
+	virtual ~base_env() = default;
 };
 

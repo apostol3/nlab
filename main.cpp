@@ -119,7 +119,7 @@ void handle_json_message()
 	}
 }
 
-rapidjson::Value method_get_state(const rapidjson::Value& params, const rapidjson::Value& id,
+rapidjson::Value method_get_state(const rapidjson::Value& /* params */, const rapidjson::Value& /* id */,
                                   rapidjson::MemoryPoolAllocator< >& allocator)
 {
 	rapidjson::Value res;
@@ -150,7 +150,7 @@ rapidjson::Value method_get_state(const rapidjson::Value& params, const rapidjso
 	return res;
 }
 
-rapidjson::Value method_get_population(const rapidjson::Value& params, const rapidjson::Value& id,
+rapidjson::Value method_get_population(const rapidjson::Value& /* params */, const rapidjson::Value& /* id */,
                                        rapidjson::MemoryPoolAllocator< >& allocator)
 {
 	if (worker.state == nlab_worker::stopped)
@@ -177,7 +177,7 @@ rapidjson::Value method_get_population(const rapidjson::Value& params, const rap
 	return res;
 }
 
-rapidjson::Value method_stop(const rapidjson::Value& params, const rapidjson::Value& id,
+rapidjson::Value method_stop(const rapidjson::Value& /* params */, const rapidjson::Value& /* id */,
                              rapidjson::MemoryPoolAllocator< >&)
 {
 	if (worker.state == nlab_worker::stopped)
@@ -189,7 +189,7 @@ rapidjson::Value method_stop(const rapidjson::Value& params, const rapidjson::Va
 	return rapidjson::Value();
 }
 
-rapidjson::Value method_start(const rapidjson::Value& params, const rapidjson::Value& id,
+rapidjson::Value method_start(const rapidjson::Value& params, const rapidjson::Value& /* id */,
                               rapidjson::MemoryPoolAllocator< >&)
 {
 	if (worker.state != nlab_worker::stopped)
@@ -202,7 +202,6 @@ rapidjson::Value method_start(const rapidjson::Value& params, const rapidjson::V
 
 	if (params.IsObject())
 	{
-		std::wstring_convert< std::codecvt_utf8_utf16< wchar_t > > converter;
 		if (params.HasMember("save_dir") && params["save_dir"].IsString())
 		{
 			worker.save_dir = params["save_dir"].GetString();
@@ -229,7 +228,7 @@ rapidjson::Value method_start(const rapidjson::Value& params, const rapidjson::V
 	return rapidjson::Value();
 }
 
-rapidjson::Value method_resume(const rapidjson::Value& params, const rapidjson::Value& id,
+rapidjson::Value method_resume(const rapidjson::Value& params, const rapidjson::Value& /* id */,
                                rapidjson::MemoryPoolAllocator< >&)
 {
 	if (worker.state != nlab_worker::paused)
@@ -251,7 +250,7 @@ rapidjson::Value method_resume(const rapidjson::Value& params, const rapidjson::
 	return rapidjson::Value();
 }
 
-rapidjson::Value method_pause(const rapidjson::Value& params, const rapidjson::Value& id,
+rapidjson::Value method_pause(const rapidjson::Value& /* params */, const rapidjson::Value& /* id */,
                               rapidjson::MemoryPoolAllocator< >&)
 {
 	if (worker.state != nlab_worker::running)
@@ -487,7 +486,7 @@ int main(int argc, char* argv[])
 }
 
 /* */
-int g_Callback(callback_info nf)
+int g_Callback(callback_info /* nf */)
 {
 	static std::chrono::high_resolution_clock::time_point now, t1, t2;
 

@@ -22,6 +22,7 @@ namespace json_routines
 
 		if (doc.HasParseError())
 		{
+			delete nt;
 			throw std::runtime_error("Load failed. JSON parse error");
 		}
 

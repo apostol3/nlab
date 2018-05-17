@@ -1,10 +1,13 @@
 ﻿#pragma once
 
 #include "neuron.h"
+
 #include <string>
 #include <cstdint>
+
 namespace nlab {
-typedef std::vector< double > net_task;
+
+using net_task = std::vector< double >;
 
 class tweann
 {
@@ -24,24 +27,33 @@ public:
 	std::wstring note;
 	std::wstring name;
 
-	tweann(const tweann& n)
+	tweann(const tweann& n) : nr(n.nr), lr(n.lr), fitness(n.fitness), id(generate_id()),
+		note(n.note), name(n.name)
 	{
-		//TODO: change this to normal copying constructor
-		*this = n;
+		nr.link_rep_ = &lr;
+		lr.neuron_rep_ = &nr;
 	}
 
 	tweann& operator=(const tweann& n)
 	{
+		if (this == &n) {
+			return *this;
+		}
+
 		nr = n.nr;
 		lr = n.lr;
 		nr.link_rep_ = &lr;
 		lr.neuron_rep_ = &nr;
 		fitness = n.fitness;
 		id = generate_id();
+		note = n.note;
+		name = n.name;
+
 		return *this;
 	}
 
 private:
 	static std::uint64_t generate_id();
 };
-};
+
+} // namespace nlab

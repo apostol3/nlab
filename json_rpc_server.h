@@ -65,7 +65,7 @@ namespace jsonrpc
 		public:
 			invalid_parameters() : method_error("Invalid parameters", -32602) { }
 
-			invalid_parameters(rapidjson::Value& data) : invalid_parameters()
+			explicit invalid_parameters(rapidjson::Value& data) : invalid_parameters()
 			{
 				_data = data;
 			}

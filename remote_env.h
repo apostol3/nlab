@@ -10,7 +10,7 @@ class base_stream
 {
 public:
 
-	virtual ~base_stream(){};
+	virtual ~base_stream() = default;
 	virtual void receive(void** ppd, std::size_t& sz) = 0;
 	virtual void send(const void* pd, std::size_t sz) = 0;
 	virtual bool is_connected() const = 0;
@@ -60,17 +60,7 @@ public:
 		_pipe(std::move(a)), _lasthead(), _state(), _lrinfo() { }
 
 	remote_env(const remote_env& a) = delete;
-
-
-
-	remote_env& operator=(remote_env&& a)
-	{
-		_pipe = std::move(a._pipe);
-		_lasthead = std::move(a._lasthead);
-		_state = std::move(a._state);
-		_lrinfo = std::move(_lrinfo);
-		return *this;
-	}
+	remote_env& operator=(remote_env&& a) = default;
 };
 
 

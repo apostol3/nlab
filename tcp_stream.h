@@ -3,6 +3,8 @@
 #define ASIO_STANDALONE
 #include <asio.hpp>
 #include <cstring>
+#include <limits>
+
 #include "remote_env.h"
 
 using asio::ip::tcp;
@@ -159,10 +161,12 @@ inline void tcp_stream::create()
 		throw std::invalid_argument("tcp error: invalid port");
 	}
 
-	if (port_num < 0 || port_num>65536)
+	if (port_num < 0 || port_num > std::numeric_limits<unsigned short>::max())
 		throw std::invalid_argument("tcp error: invalid port");
 
-	_acceptor = tcp::acceptor(_io_service, tcp::endpoint(tcp::v4(), std::stoi(_port.c_str())));
+	_acceptor = tcp::acceptor(_io_service, tcp::endpoint(tcp::v4(),
+		static_cast<unsigned short>(port_num)));
+
 	_acceptor.non_blocking(true);
 	if (!_reopen)
 	{

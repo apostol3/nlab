@@ -31,7 +31,7 @@ e_start_info remote_env::get_start_info()
 	size_t sz = 0;
 
 	packet_type ptype;
-	while (!sz)
+	while (sz == 0)
 	{
 		_pipe->receive(&buf, sz);
 	}
@@ -117,7 +117,7 @@ e_send_info remote_env::get()
 	size_t sz = 0;
 	packet_type ptype;
 
-	while (!sz)
+	while (sz == 0)
 	{
 		_pipe->receive(&buf, sz);
 	}
@@ -161,7 +161,7 @@ e_send_info remote_env::get()
 	auto& data = desi["data"];
 	for (auto i = data.Begin(); i != data.End(); i++)
 	{
-		esi.data.push_back(env_task());
+		esi.data.emplace_back();
 
 		env_task& cur_tsk = esi.data.back();
 		for (auto j = i->Begin(); j != i->End(); j++)
@@ -190,12 +190,12 @@ int remote_env::set(const n_send_info& inf)
 	{
 		doc.String("data");
 		doc.StartArray();
-		for (size_t i = 0; i < inf.data.size(); i++)
+		for (auto& i : inf.data)
 		{
 			doc.StartArray();
-			for (size_t j = 0; j < inf.data[i].size(); j++)
+			for (auto& j : i)
 			{
-				doc.Double(inf.data[i][j]);
+				doc.Double(j);
 			}
 
 			doc.EndArray();

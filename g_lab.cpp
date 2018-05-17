@@ -50,7 +50,7 @@ void g_lab::generate_neuron(tweann* nt)
 	}
 
 	int count = 1;
-	int visc = 1;
+	const int visc = 1;
 	for (int i = 0; i < count; i++)
 	{
 		neuron_c* N = nt->nr.get_c(nt->nr.insert(neuron())); //TODO: try optimize
@@ -60,7 +60,7 @@ void g_lab::generate_neuron(tweann* nt)
 		while (rt == -1)
 		{
 			rt = random(6) + 2;
-			if (AcceptList[rt] == false)
+			if (!AcceptList[rt])
 			{ //TODO: Cache list out of while
 				rt = -1;
 			}
@@ -79,13 +79,7 @@ void g_lab::generate_neuron(tweann* nt)
 		V->y = random(400);
 		V->r = 20;
 
-		int vis = visc;
-		if (vis == 0)
-		{
-			vis = 1;
-		}
-
-		for (int j = 0; j < vis; j++)
+		for (int k = 0; k < visc; k++)
 		{
 			size_t ri = 0;
 			size_t ro = 0;
@@ -142,7 +136,7 @@ void g_lab::change_weight(tweann* nt)
 		throw;
 	}
 
-	if (nt->lr.links.size() == 0)
+	if (nt->lr.links.empty())
 	{
 		return;
 	}
@@ -239,7 +233,7 @@ void g_lab::delete_link(tweann* nt)
 		throw;
 	}
 
-	if (nt->lr.links.size() == 0)
+	if (nt->lr.links.empty())
 	{
 		return;
 	}
@@ -264,7 +258,9 @@ void g_lab::change_neuron_type(tweann* nt)
 		rnd = random(sz);
 		neuron_type& tp = nt->nr.neurons[rnd].c->type;
 		if (tp != neuron_type::input && tp != neuron_type::output)
+		{
 			break;
+		}
 
 		if (++i > 100)
 		{
@@ -406,7 +402,7 @@ extern int g_Callback(callback_info nf);
 int g_lab::gen_cycle(std::vector< tweann * >& nts, base_env* env, size_t& cps)
 {
 	size_t cnt = env->get_state().count;
-	cnt = cnt ? cnt : 1;
+	cnt = (cnt == 0) ? cnt : 1;
 
 	for (size_t i = 0; i < nts.size(); i++)
 	{
@@ -474,7 +470,7 @@ int g_lab::gen_cycle(std::vector< tweann * >& nts, base_env* env, size_t& cps)
 			{
 				tweann* nt = ntt[k];
 				In = esinf.data[k];
-				if (nt == nullptr || In.size() == 0)
+				if (nt == nullptr || In.empty())
 				{
 					Out.clear();
 					for (unsigned int z = 0; z < env->get_state().outcount; z++)
@@ -559,10 +555,9 @@ void g_lab::pop_gen(std::vector< tweann * >& nts, size_t popsize, size_t in, siz
 /* */
 int g_lab::cycle(std::vector< tweann * >& nts, base_env* env, size_t popsize, size_t& cps)
 {
-	using namespace std;
 	if (popsize < 2)
 	{
-		throw runtime_error("Population size < 2!");
+		throw std::runtime_error("Population size < 2!");
 	}
 
 	pop_gen(nts, popsize, env->get_state().incount, env->get_state().outcount);
@@ -574,16 +569,16 @@ int g_lab::cycle(std::vector< tweann * >& nts, base_env* env, size_t popsize, si
 
 	fitness_sort(nts);
 
-	cout << "Best: " << nts[0]->fitness << "\n";
+	std::cout << "Best: " << nts[0]->fitness << "\n";
 
 	double avfts = 0;
-	for (size_t i = 0; i < nts.size(); i++)
+	for (auto& i : nts)
 	{
-		avfts += nts[i]->fitness;
+		avfts += i->fitness;
 	}
 
 	avfts /= static_cast< double >(nts.size());
-	cout << "Average: " << avfts << "\n";
+	std::cout << "Average: " << avfts << "\n";
 
 	pop_mutate(nts);
 

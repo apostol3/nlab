@@ -2,15 +2,13 @@
 
 #include "tweann.h"
 #include "env.h"
+
 namespace nlab
 {
 
 	class g_lab
 	{
 	public:
-		g_lab()
-		{
-		}
 
 		void generate_neuron(tweann* nt);
 		void delete_neuron(tweann* nt);
@@ -38,11 +36,11 @@ namespace nlab
 
 	struct callback_info
 	{
-		size_t* cps;
-		net_task* in;
-		net_task* out;
-		tweann* net;
-		size_t count;
+		size_t* cps{nullptr};
+		net_task* in{nullptr};
+		net_task* out{nullptr};
+		tweann* net{nullptr};
+		size_t count{0};
 	};
 
-};
+} //namespace nlab
