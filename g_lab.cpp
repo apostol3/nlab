@@ -402,7 +402,7 @@ extern int g_Callback(callback_info nf);
 int g_lab::gen_cycle(std::vector< tweann * >& nts, base_env* env, size_t& cps)
 {
 	size_t cnt = env->get_state().count;
-	cnt = (cnt == 0) ? cnt : 1;
+	cnt = (cnt != 0) ? cnt : 1;
 
 	for (size_t i = 0; i < nts.size(); i++)
 	{
