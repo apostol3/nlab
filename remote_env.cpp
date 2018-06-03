@@ -1,44 +1,35 @@
-﻿#include <rapidjson/document.h>
-#include <rapidjson/writer.h>
-
 #include "remote_env.h"
+
 #include <iostream>
+#include <rapidjson/document.h>
+#include <rapidjson/writer.h>
+#include <rapidjson/reader.h>
+#include <rapidjson/error/en.h>
 
 using namespace rapidjson;
 
-enum class packet_type
-{
-	none = 0,
-	e_start_info,
-	n_start_info,
-	n_send_info,
-	e_send_info,
-	n_restart_info,
-	e_restart_info
-};
-
-/* */
 int remote_env::init()
 {
-	_pipe->create();
+	dom_buffer_.resize(dom_default_sz_);
+	stack_buffer_.resize(stack_default_sz_);
+	pipe_->create();
 	return 0;
 }
 
-/* */
 e_start_info remote_env::get_start_info()
 {
-	void* buf = nullptr;
+	char* buf = nullptr;
 	size_t sz = 0;
 
 	packet_type ptype;
 	while (sz == 0)
 	{
-		_pipe->receive(&buf, sz);
+		pipe_->receive(reinterpret_cast<void**>(&buf), sz);
 	}
 
 	Document doc;
 
-	doc.Parse(static_cast< char* >(buf));
+	doc.Parse(buf);
 	if (doc.HasParseError())
 	{
 		throw std::runtime_error("GetStartInfo failed. JSON parse error");
@@ -66,28 +57,27 @@ e_start_info remote_env::get_start_info()
 	esi.incount = desi["incount"].GetUint64();
 	esi.outcount = desi["outcount"].GetUint64();
 
-	_state.mode = esi.mode;
-	_state.count = esi.count;
-	_state.incount = esi.incount;
-	_state.outcount = esi.outcount;
+	state_.mode = esi.mode;
+	state_.count = esi.count;
+	state_.incount = esi.incount;
+	state_.outcount = esi.outcount;
 	return esi;
 }
 
-/* */
 int remote_env::set_start_info(const n_start_info& inf)
 {
-	if (_state.mode == send_modes::specified && inf.count != _state.count)
+	if (state_.mode == send_modes::specified && inf.count != state_.count)
 	{
 		throw;
 	}
 
-	if (_state.mode == send_modes::undefined && _state.count != 0 && inf.count > _state.count)
+	if (state_.mode == send_modes::undefined && state_.count != 0 && inf.count > state_.count)
 	{
 		throw;
 	}
 
-	_state.count = inf.count;
-	_state.round_seed = inf.round_seed;
+	state_.count = inf.count;
+	state_.round_seed = inf.round_seed;
 
 	StringBuffer s;
 	Writer< StringBuffer > doc(s);
@@ -105,79 +95,260 @@ int remote_env::set_start_info(const n_start_info& inf)
 	doc.EndObject();
 	s.Put('\0');
 
-	_pipe->send(s.GetString(), s.GetSize()); //TODO: V107 http://www.viva64.com/en/V107 Implicit 
-	//type conversion second argument 's.GetSize()' of function 'Send' to 32-bit type.
+	pipe_->send(s.GetString(), s.GetSize());
 	return 0;
 }
 
-/* */
+struct e_send_info_parser : public BaseReaderHandler<UTF8<>, e_send_info_parser>
+{
+	bool StartObject() { 
+		switch (state_)
+		{
+		case kExpectMainObjectStart:
+			state_ = kExpectMainNameOrEnd;
+			return true;
+		case kExpectPacketObjectStart:
+			state_ = kExpectPacketNameOrEnd;
+			return true;
+		default:
+			return false;
+		}
+	}
+    
+    bool EndObject( [[maybe_unused]] SizeType memberCount) {
+		switch (state_)
+		{
+		case kExpectMainNameOrEnd:
+			if (!got_type_ || !got_packet_ || !got_payload_ || !got_head_)
+			{
+				throw std::runtime_error("Get failed. Required JSON fields are missing");
+			}
+			return true;
+		case kExpectPacketNameOrEnd:
+			state_ = kExpectMainNameOrEnd;
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	bool Key(const Ch* str, SizeType len, [[maybe_unused]] bool copy) {
+		(void)copy;
+		switch (state_)
+		{
+		case kExpectMainNameOrEnd:
+			if (strncmp(str, "type", len) == 0) {
+				got_type_ = true;
+				state_ = kExpectType;
+				return true;
+			}
+			else if (strncmp(str, "e_send_info", len) == 0) {
+				got_packet_ = true;
+				state_ = kExpectPacketObjectStart;
+				return true;
+			}
+			else {
+				return false;
+			}
+		case kExpectPacketNameOrEnd:
+			if (strncmp(str, "head", len) == 0)
+			{
+				got_head_ = true;
+				state_ = kExpectHead;
+				return true;
+			}
+			else if (strncmp(str, "data", len) == 0)
+			{
+				state_ = kExpectDataStart;
+				return true;
+			}
+			else if (strncmp(str, "score", len) == 0)
+			{
+				state_ = kExpectScoreStart;
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		default:
+			return false;
+		}
+	}
+
+	bool StartArray() {
+		switch (state_)
+		{
+		case kExpectEnvDataStartOrEnd:
+			state_ = kExpectEnvDataOrEnd;
+			return true;
+		case kExpectDataStart:
+			got_payload_ = true;
+			new_data_.reserve(expected_inputs);
+			result->data.reserve(expected_envs);
+			state_ = kExpectEnvDataStartOrEnd;
+			return true;
+		case kExpectScoreStart:
+			lrinfo->result.clear();
+			lrinfo->result.reserve(expected_envs);
+			got_payload_ = true;
+			state_ = kExpectScoreOrEnd;
+			return true;
+		default:
+			return false;
+		}
+	}
+
+    bool EndArray( [[maybe_unused]] SizeType elementCount) {
+		switch (state_)
+		{
+		case kExpectEnvDataOrEnd:
+			result->data.emplace_back();
+			result->data.back().swap(new_data_);
+			new_data_.reserve(expected_inputs);
+			state_ = kExpectEnvDataStartOrEnd;
+			return true;
+		case kExpectEnvDataStartOrEnd:
+			state_ = kExpectPacketNameOrEnd;
+			return true;
+		case kExpectScoreOrEnd:
+			state_ = kExpectPacketNameOrEnd;
+			return true;
+		default:
+			return false;
+		}
+	}
+
+
+	bool Double(double a) {
+		switch (state_)
+		{
+		case kExpectEnvDataOrEnd:
+			new_data_.emplace_back(a);
+			return true;
+		case kExpectScoreOrEnd:
+			lrinfo->result.emplace_back(a);
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	bool Int64(int64_t a)
+	{
+		switch (state_)
+		{
+		case kExpectType:
+			if (packet_type(a) != packet_type::e_send_info)
+			{
+				throw std::runtime_error("Get failed. Unknown packet type");
+			}
+			state_ = kExpectMainNameOrEnd;
+			return true;
+		case kExpectHead:
+			result->head = verification_header(a);
+			state_ = kExpectPacketNameOrEnd;
+			return true;
+		default:
+			return Double(static_cast<double>(a));
+		}
+	}
+
+	bool Null() { return Int64(0); }
+
+    bool Bool(bool a) { return Int64(a?1:0); }
+
+    bool Int(int a) { return Int64(a); }
+
+    bool Uint(unsigned a) { return Int64(a); }
+
+    bool Uint64(uint64_t a) { return Int64(static_cast<int64_t>(a)); }
+
+	bool Default() { return false; }
+
+	e_send_info* result{nullptr};
+	e_restart_info* lrinfo{nullptr};
+
+	size_t expected_envs{0};
+	size_t expected_inputs{0};
+
+private:
+	enum State
+	{
+		kExpectMainObjectStart,
+		kExpectMainNameOrEnd,
+		kExpectType,
+		kExpectPacketObjectStart,
+		kExpectPacketNameOrEnd,
+		kExpectHead,
+		kExpectDataStart,
+		kExpectEnvDataStartOrEnd,
+		kExpectEnvDataOrEnd,
+		kExpectScoreStart,
+		kExpectScoreOrEnd
+	}state_{kExpectMainObjectStart};
+
+	bool got_type_{ false };
+	bool got_packet_{ false };
+	bool got_payload_{ false };
+	bool got_head_{ false };
+
+	env_task new_data_;
+};
+
 e_send_info remote_env::get()
 {
-	void* buf = nullptr;
+	char* buf = nullptr;
 	size_t sz = 0;
-	packet_type ptype;
 
 	while (sz == 0)
 	{
-		_pipe->receive(&buf, sz);
-	}
-
-	Document doc;
-
-	doc.Parse(static_cast< char* >(buf));
-	if (doc.HasParseError())
-	{
-		std::cout << "Invalid JSON: " << static_cast< char* >(buf) << std::endl;
-		throw std::runtime_error("Get failed. JSON parse error");
-	}
-	
-
-	ptype = packet_type(doc["type"].GetInt());
-	if (ptype != packet_type::e_send_info)
-	{
-		throw std::runtime_error("Get failed. Unknown packet type");
+		pipe_->receive(reinterpret_cast<void**>(&buf), sz);
 	}
 
 	e_send_info esi;
-	auto& desi = doc["e_send_info"];
-	esi.head = verification_header(desi["head"].GetInt());
-	_lasthead = esi.head;
 
-	if (esi.head != verification_header::ok)
+	MemoryPoolAllocator<> stack_allocator{ stack_buffer_.data(), stack_buffer_.size() };
+
+	GenericReader<UTF8<>, UTF8<>, MemoryPoolAllocator<>> reader(&stack_allocator,
+		stack_buffer_.capacity());
+	StringStream ss(buf);
+
+	e_send_info_parser handler;
+	handler.expected_envs = state_.count;
+	handler.expected_inputs = state_.incount;
+	handler.result = &esi;
+	handler.lrinfo = &lrinfo_;
+
+	reader.Parse(ss, handler);
+
+	if (reader.HasParseError())
 	{
-		if (esi.head == verification_header::restart)
-		{
-			auto& data = desi["score"];
-			_lrinfo.result.clear();
-			for (auto i = data.Begin(); i != data.End(); i++)
-			{
-				_lrinfo.result.push_back(i->GetDouble());
-			}
-		}
-
-		return esi;
+		std::cout << "Invalid JSON: " << buf << std::endl;
+		ParseErrorCode e = reader.GetParseErrorCode();
+		size_t o = reader.GetErrorOffset();
+		std::cout << "Error: " << GetParseError_En(e) << "\n";
+		std::cout << " at offset " << o << " near '" << std::string(buf).substr(o, 10) << "...'\n";
+		throw std::runtime_error("Get failed. JSON parse error");
 	}
 
-	auto& data = desi["data"];
-	for (auto i = data.Begin(); i != data.End(); i++)
+	lasthead_ = esi.head;
+	if (esi.head != verification_header::ok)
 	{
-		esi.data.emplace_back();
-
-		env_task& cur_tsk = esi.data.back();
-		for (auto j = i->Begin(); j != i->End(); j++)
-		{
-			cur_tsk.push_back(j->GetDouble());
-		}
+		esi.data.clear();
 	}
 
 	return esi;
 }
 
-/* */
 int remote_env::set(const n_send_info& inf)
 {
-	StringBuffer s;
-	Writer< StringBuffer > doc(s);
+	using StringBufferType = GenericStringBuffer<UTF8<>, MemoryPoolAllocator<>>;
+	MemoryPoolAllocator<> dom_allocator{ dom_buffer_.data(), dom_buffer_.size() };
+	MemoryPoolAllocator<> stack_allocator{ stack_buffer_.data(), stack_buffer_.size() };
+
+	StringBufferType s{ &dom_allocator, dom_allocator.Capacity() };
+	Writer< StringBufferType, UTF8<>, UTF8<>, MemoryPoolAllocator<> > doc(s, &stack_allocator);
 	doc.StartObject();
 	doc.String("type");
 	doc.Int(static_cast<int>(packet_type::n_send_info));
@@ -208,16 +379,20 @@ int remote_env::set(const n_send_info& inf)
 	doc.EndObject();
 	s.Put('\0');
 
-	_pipe->send(s.GetString(), s.GetSize());
+	pipe_->send(s.GetString(), s.GetSize());
+
+	if (dom_allocator.Size() > dom_buffer_.size())
+	{
+		dom_buffer_.resize(dom_allocator.Size());
+	}
 
 	return 0;
 }
 
-/* */
 int remote_env::restart(const n_restart_info& inf)
 {
-	_state.count = inf.count;
-	_state.round_seed = inf.round_seed;
+	state_.count = inf.count;
+	state_.round_seed = inf.round_seed;
 
 	StringBuffer s;
 	Writer< StringBuffer > doc(s);
@@ -236,12 +411,11 @@ int remote_env::restart(const n_restart_info& inf)
 	doc.EndObject();
 	s.Put('\0');
 
-	_pipe->send(s.GetString(), s.GetSize());
+	pipe_->send(s.GetString(), s.GetSize());
 
 	return 0;
 }
 
-/* */
 int remote_env::stop()
 {
 	StringBuffer s;
@@ -257,15 +431,21 @@ int remote_env::stop()
 	doc.EndObject();
 	s.Put('\0');
 
-	_pipe->send(s.GetString(), s.GetSize());
-	_pipe->close();
+	pipe_->send(s.GetString(), s.GetSize());
+
+	terminate();
 	return 0;
 };
 
-/* */
 int remote_env::terminate()
 {
-	_pipe->close();
+	pipe_->close();
+
+	dom_buffer_.resize(dom_default_sz_);
+	dom_buffer_.shrink_to_fit();
+
+	stack_buffer_.resize(stack_default_sz_);
+	stack_buffer_.shrink_to_fit();
+
 	return 0;
 }
-

@@ -20,7 +20,7 @@ class tcp_stream : public base_stream
 	bool _reopen;
 	std::string _host;
 	std::string _port;
-	size_t static const max_internal_buffer = 1024;
+	size_t static const max_internal_buffer = 16 * 1024;
 
 public:
 	explicit tcp_stream(size_t buf_size);
