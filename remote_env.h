@@ -15,6 +15,7 @@ public:
 	virtual void receive(void** ppd, std::size_t& sz) = 0;
 	virtual void send(const void* pd, std::size_t sz) = 0;
 	virtual bool is_connected() const = 0;
+
 	virtual void connect() = 0;
 	virtual void disconnect() = 0;
 
@@ -42,6 +43,9 @@ class remote_env : public base_env
 
 	static const size_t dom_default_sz_ = 64 * 1024u;
 	static const size_t stack_default_sz_ = 4 * 1024u;
+
+	size_t last_dom_buffer_sz_{};
+	size_t last_stack_buffer_sz_{};
 
 	std::vector<std::uint8_t> dom_buffer_;
 	std::vector<std::uint8_t> stack_buffer_;
