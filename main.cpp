@@ -126,11 +126,11 @@ rapidjson::Value method_get_state(const rapidjson::Value& /* params */, const ra
 	std::wstring_convert< std::codecvt_utf8_utf16< wchar_t > > converter;
 
 	res.SetObject();
-	res.AddMember("speed", worker.last_speed, allocator);
+	res.AddMember("speed", static_cast<uint64_t>(worker.last_speed), allocator);
 	res.AddMember("best", worker.last_best, allocator);
-	res.AddMember("max_round", worker.rounds, allocator);
-	res.AddMember("round", worker.cur_round, allocator);
-	res.AddMember("popsize", worker.popsize, allocator);
+	res.AddMember("max_round", static_cast<uint64_t>(worker.rounds), allocator);
+	res.AddMember("round", static_cast<uint64_t>(worker.cur_round), allocator);
+	res.AddMember("popsize", static_cast<uint64_t>(worker.popsize), allocator);
 	res.AddMember("save_dir",
 	              rapidjson::Value().SetString(worker.save_dir.c_str(), allocator),
 	              allocator);
